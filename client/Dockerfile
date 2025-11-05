@@ -1,5 +1,5 @@
-# Step 1: Build Stage
-FROM node:16 AS build
+# # Step 1: Build Stage
+# FROM node:16 AS build
 # Use Node.js as the base image
 FROM node:18-alpine as build
 
