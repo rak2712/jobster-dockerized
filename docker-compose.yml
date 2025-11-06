@@ -1,38 +1,30 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  mongo:
+  mongo-service:
     image: mongo:latest
-    container_name: mongo
+    container_name: mongo-service
     restart: always
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
 
-  backend:  # Backend service
-    build:
-      context: .  # Context is the root of the project
-      dockerfile: Dockerfile  # Referring to the root Dockerfile
-    container_name: backend
-    restart: always
+  backend:
+    build: ./
     ports:
       - "5000:5000"
     depends_on:
-      - mongo
+      - mongo-service
     environment:
-      - MONGO_URI=mongodb://mongo:27017/jobster
-      - JWT_SECRET=your_jwt_secret
+      - MONGO_URI=mongodb://mongo-service:27017/jobster
+      - JWT_SECRET=8bc475d7a8a04e6a9bd55a9d6f184e54
       - JWT_LIFETIME=30d
 
-  frontend:  # Frontend service
-    build:
-      context: .
-      dockerfile: client/Dockerfile
-    container_name: frontend
-    restart: always
+  frontend:
+    build: ./client
     ports:
-      - "3000:81"
+      - "3000:80"
     depends_on:
       - backend
 
