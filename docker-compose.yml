@@ -11,7 +11,9 @@ services:
       - mongo-data:/data/db
 
   backend:
-    build: ./
+    build:
+      context: ./
+      dockerfile: Dockerfile
     ports:
       - "5000:5000"
     depends_on:
@@ -22,7 +24,9 @@ services:
       - JWT_LIFETIME=30d
 
   frontend:
-    build: ./client
+    build:
+      context: ./client
+      dockerfile: Dockerfile
     ports:
       - "3000:80"
     depends_on:
