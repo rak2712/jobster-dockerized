@@ -1,41 +1,40 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: always
     ports:
-      - "80:80"
-    networks:
-      - app-network
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
 
-  backend:
+  backend:  # Backend service
     build:
-      context: .
-      dockerfile: Dockerfile.backend
-    environment:
-      - NODE_ENV=production
-      - MONGO_URI=mongodb://mongo:27017/jobster
+      context: .  # Context is the root of the project
+      dockerfile: Dockerfile  # Referring to the root Dockerfile
+    container_name: backend
+    restart: always
     ports:
       - "5000:5000"
     depends_on:
       - mongo
-    networks:
-      - app-network
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/jobster
+      - JWT_SECRET=your_jwt_secret
+      - JWT_LIFETIME=30d
 
-  mongo:
-    image: mongo:latest
-    container_name: mongo
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
+  frontend:  # Frontend service
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "3000:81"
+    depends_on:
+      - backend
 
 volumes:
   mongo-data:
-    driver: local
