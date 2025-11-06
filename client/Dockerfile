@@ -13,6 +13,9 @@ RUN npm i
 # Copy the rest of the code
 COPY . .
 
+# Disable CI mode to allow CRA build inside Docker
+ENV CI=false
+
 # Build the app
 RUN npm run build
 
@@ -21,9 +24,6 @@ FROM nginx:alpine
 
 # Copy built assets from build stage
 COPY --from=build /app/build /usr/share/nginx/html
-
-# Add nginx configuration if needed
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
