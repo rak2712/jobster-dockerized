@@ -254,3 +254,53 @@ Jenkins will:
 ✅ Frontend → http://your-server-ip:81
 ✅ Backend → http://your-server-ip:5000
 ✅ MongoDB exposed at → 27017
+Here’s a clear visual representation of your project’s file structure in a block/diagram format for your README or documentation:
+
+jobster-dockerized/
+│
+├── client/                     # Frontend code
+│   ├── Dockerfile              # Dockerfile for frontend build
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── public/
+│   │   ├── index.html
+│   │   └── ...                 # Other public assets
+│   └── src/
+│       ├── App.js
+│       ├── index.js
+│       └── ...                 # React source files
+│
+├── Dockerfile                  # Backend Dockerfile
+├── docker-compose.yml          # Docker Compose config
+├── Jenkinsfile                 # CI/CD pipeline for Jenkins
+├── package.json                # Backend package.json
+├── package-lock.json           # Backend dependencies lock
+├── server.js / app.js          # Backend entry point
+└── README.md                   # Project documentation
+
+Optional Diagram (Block Style):
+┌───────────────────────────┐
+│       Docker Network       │
+│      jobster-net           │
+└─────────┬─────────┬───────┘
+          │         │
+          │         │
+┌─────────▼─────────┐  ┌─────────▼─────────┐
+│  MongoDB Service  │  │ Backend Service   │
+│ mongo-service     │  │ jobster-backend   │
+│ Port: 27017       │  │ Port: 5000       │
+└─────────▲─────────┘  └─────────▲─────────┘
+          │                    │
+          │                    │
+          │                    │
+       ┌──┴─────────┐
+       │ Frontend   │
+       │ jobster-   │
+       │ frontend   │
+       │ Port: 81   │
+       └────────────┘
+
+
+✅ This shows how your frontend, backend, and MongoDB containers are connected in the Docker network (jobster-net).
+
+If you want, I can conve
