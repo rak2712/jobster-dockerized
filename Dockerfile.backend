@@ -1,20 +1,17 @@
-# Use Node.js as the base image
+# Use an official Node.js runtime as a parent image
 FROM node:16
-
-# Set working directory
+# Set the working directory inside the container
 WORKDIR /app
-
-# Copy package.json and package-lock.json
-COPY backend/package.json backend/package-lock.json ./
-
-# Install backend dependencies
+# Copy package.json and package-lock.json first
+COPY package*.json ./
+# Install dependencies
 RUN npm install
+# Copy the rest of the application files
+COPY . .
 
-# Copy the rest of the backend application files
-COPY backend/ ./
-
-# Expose port for the backend server
+#EXPOSE the port that the server runs on
 EXPOSE 5000
 
-# Define the command to start the backend
-CMD ["npm", "start"]
+#DEFINE THE COMMAND TO RUN THE application
+
+CMD ["npm","start"]
