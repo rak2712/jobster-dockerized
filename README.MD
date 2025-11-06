@@ -1,683 +1,256 @@
-# Jobster API
+✅ JOBSTER — Complete CI/CD Setup Guide for Jenkins + Docker
 
-#### Starter
+This document explains every step required before running the Jenkins CI/CD pipeline for the Jobster project.
+Follow this guide from top to bottom to fully prepare your environment, server, Docker, and Jenkins for automated deployment.
 
-The starter is a copy of jobs-api final project, just with additional data.
+✅ 1. Server Requirements
 
-#### Setup
+Before running the pipeline, ensure you have:
 
-- navigate to 06.5-jobster-api/starter
-- install dependencies
+✅ Linux Server (Ubuntu recommended)
 
-```sh
-npm install
-```
+Minimum specs:
 
-- create .env and provide correct values
-- you can copy from previous project (just change the DB name)
+2 CPU cores
 
-.env
+4 GB RAM
 
-```js
-MONGO_URI=
-JWT_SECRET=
-JWT_LIFETIME=
-```
+20 GB Disk
 
-- start the project
+✅ SSH Access
 
-```sh
-npm start
-```
+Example:
 
-- you should see "Server is listening ...." text
+ssh user@your-server-ip
 
-#### Spring Cleaning
+✅ 2. Install Required Software on the Server
 
-##### Remove Swagger
+You must install:
 
-- delete swagger.yaml file
-- remove these lines of code
-- delete swagger.yaml
-  app.js
+✅ 2.1 Install Docker
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io
 
-```js
-const swaggerUI = require('swagger-ui-express');
-const YAML = require('yamljs');
-const swaggerDocument = YAML.load('./swagger.yaml');
 
-app.get('/', (req, res) => {
-  res.send('<h1>Jobs API</h1><a href="/api-docs">Documentation</a>');
-});
-app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
-```
+Enable Docker:
 
-#### Remove API Limiter
+sudo systemctl enable docker
+sudo systemctl start docker
 
-- remove these lines of code
+✅ 2.2 Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/download/2.24.0/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
-app.js
 
-```js
-const rateLimiter = require('express-rate-limit');
+Verify:
 
-app.set('trust proxy', 1);
-app.use(
-  rateLimiter({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-  })
-);
-```
+docker-compose --version
 
-#### Remove CORS
+✅ 2.3 Allow Jenkins to Use Docker
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
 
-- we don't want external JS apps to access our API (only our front-end)
-- remove these lines of code
+✅ 3. Install Jenkins
+✅ Install Java (required by Jenkins)
+sudo apt update
+sudo apt install -y openjdk-17-jdk
 
-```js
-const cors = require('cors');
-app.use(cors());
-```
+✅ Install Jenkins
+curl -fsSL https://pkg.jenkins.io/debian/jenkins.io.key | sudo tee \
+  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
 
-#### Package.json
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
 
-- add "dev" script with nodemon
-- change engines to current version (in my case 16)
+sudo apt update
+sudo apt install -y jenkins
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
 
-package.json
 
-```js
+Access Jenkins:
 
-"scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
-  },
+http://your-server-ip:8080
 
-"engines": {
-    "node": "16.x"
-  }
-```
+✅ 4. Initial Jenkins Setup
+Install these plugins:
 
-- restart server with "npm run dev"
+✅ Git Plugin
+✅ Docker Pipeline
+✅ Docker API Plugin
+✅ Credentials Binding Plugin
+✅ Pipeline Plugin
+✅ Blue Ocean (optional)
+✅ NodeJS Plugin (optional)
 
-##### Client Folder
+✅ 5. Create Jenkins Credentials
 
-- let's explore client folder
-- open client folder
-- it's a react app built with CRA
-- it's the same as in my React Course (JOBSTER APP),
-  just base url points to our current server (instead of heroku app)
+Go to:
 
-utils/axios.js
+Jenkins → Manage Jenkins → Credentials → Global → Add Credentials
 
-```js
-const customFetch = axios.create({
-  baseURL: '/api/v1',
-});
-```
+Create the following:
 
-- notice the build folder (production ready application)
-- in CRA we can create build folder by running "npm run build"
-- that's the one we will use for our front-end
+ID	Type	Purpose
+dockerhub-token	Secret Text	Docker Hub access token
+jwt-secret	Secret Text	JWT secret for backend
+github-credentials (optional)	Username + PAT	For private repos
+✅ 6. Docker Hub Setup
 
-##### Setup Front-End
+You MUST have:
 
-- require "path" module
-- setup express static (as first middleware)
-  to serve static assets from client/build
-- so now instead of public folder we are using client/build
+✅ A Docker Hub account
+✅ Two repositories:
 
-app.js
+jobster-frontend
 
-```js
-const path = require('path');
+jobster-backend
 
-app.use(express.static(path.resolve(__dirname, './client/build')));
+Create an access token:
 
-// place as first middleware
-app.use(express.json());
-app.use(helmet());
-app.use(cors());
-app.use(xss());
-```
+Docker Hub → Security → New Access Token
 
-- serve index.html for all routes (apart from API)
-- front-end routes pick's it up from there
+Save this in Jenkins as:
 
-```js
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/jobs', authenticateUser, jobsRouter);
+dockerhub-token
 
-// serve index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, './client/build', 'index.html'));
-});
+✅ 7. GitHub Setup
+✅ 7.1 Remove secrets from Git history
 
-app.use(notFoundMiddleware);
-app.use(errorHandlerMiddleware);
-```
+You must ensure no secrets appear in any commit.
 
-- navigate to localhost:5000
-- clear local storage (if necessary)
+You already removed the hardcoded token using:
 
-#### Modify User Model
+git filter-repo
 
-- add following properties
+✅ 7.2 Push cleaned history with force
+git push origin main --force
 
-models/User.js
+✅ 7.3 Add new (clean) Jenkinsfile
 
-```js
-lastName: {
-    type: String,
-    trim: true,
-    maxlength: 20,
-    default: 'lastName',
-  },
-  location: {
-    type: String,
-    trim: true,
-    maxlength: 20,
-    default: 'my city',
-  },
+Now you may add a safe Jenkinsfile.
 
-```
+✅ 8. Required Files in Your Repository
 
-#### Modify Response in Register and Login
+Your repo must contain:
 
-- change the response structure in
-  register and login controllers (just keep old StatusCodes)
+/client/Dockerfile      → frontend
+/Dockerfile             → backend
+Jenkinsfile             → CI/CD pipeline
+docker-compose.yml      (optional for local dev)
 
-controllers/auth.js
+✅ 9. Jenkinsfile (Final Clean Version)
+pipeline {
+    agent any
 
-```js
-res.status(StatusCodes.CREATED).json({
-  user: {
-    email: user.email,
-    lastName: user.lastName,
-    location: user.location,
-    name: user.name,
-    token,
-  },
-});
-```
+    environment {
+        DOCKER_USER = 'rakshith3'
+        DOCKER_PASS = credentials('dockerhub-token')
+        GIT_URL = 'https://github.com/rak2712/jobster-dockerized.git'
+        GIT_BRANCH = 'main'
+        MONGO_URI = 'mongodb://mongo-service:27017/jobster'
+        JWT_SECRET = credentials('jwt-secret')
+        JWT_LIFETIME = '30d'
+    }
 
-- Login and Register Works Now :):):)
+    stages {
 
-#### Create Test User
+        stage('Checkout Code') {
+            steps {
+                sh 'rm -rf jobster-dockerized'
+                sh 'git clone $GIT_URL'
+            }
+        }
 
-- test front-end request
-- in postman or front-end
-- make sure email and password are the same (or change the front-end)
+        stage('Build Docker Images') {
+            steps {
+                dir('jobster-dockerized/client') {
+                    sh 'docker build -t $DOCKER_USER/jobster-frontend:latest .'
+                }
+                dir('jobster-dockerized') {
+                    sh 'docker build -t $DOCKER_USER/jobster-backend:latest .'
+                }
+            }
+        }
 
-```js
-{
-    "name":"demo user",
-    "email":"testUser@test.com",
-    "password":"secret"
+        stage('Push Images') {
+            steps {
+                sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                sh 'docker push $DOCKER_USER/jobster-frontend:latest'
+                sh 'docker push $DOCKER_USER/jobster-backend:latest'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    sh 'docker network create jobster-net || true'
+
+                    sh 'docker rm -f jobster-backend || true'
+                    sh 'docker rm -f jobster-frontend || true'
+
+                    sh '''
+                        docker run -d \
+                        --network jobster-net \
+                        --name mongo-service \
+                        -p 27017:27017 \
+                        --restart always \
+                        mongo:latest || true
+                    '''
+
+                    sh '''
+                        docker run -d \
+                        --network jobster-net \
+                        --name jobster-backend \
+                        -p 5000:5000 \
+                        --restart always \
+                        -e MONGO_URI=$MONGO_URI \
+                        -e JWT_SECRET=$JWT_SECRET \
+                        -e JWT_LIFETIME=$JWT_LIFETIME \
+                        $DOCKER_USER/jobster-backend:latest
+                    '''
+
+                    sh '''
+                        docker run -d \
+                        --network jobster-net \
+                        --name jobster-frontend \
+                        -p 81:80 \
+                        --restart always \
+                        $DOCKER_USER/jobster-frontend:latest
+                    '''
+                }
+            }
+        }
+    }
 }
-```
 
-- navigate to client/src/pages/Register.js
-- make sure email and password match your test user
+✅ 10. Running the Pipeline
 
-```js
-<button
-  type='button'
-  className='btn btn-block btn-hipster'
-  disabled={isLoading}
-  onClick={() =>
-  dispatch(loginUser({ email: 'testUser@test.com', password: 'secret' }))}>
+Open Jenkins → New Item → Pipeline → Configure:
 
-```
+✅ Select Pipeline from SCM
+✅ Enter GitHub repository URL
+✅ Branch: main
 
-#### Update User Functionality
+Click Build Now.
 
-- import authenticateUser middleware
-- setup updateUser route (protected route)
+Jenkins will:
 
-routes/auth.js
+✅ Clone code
+✅ Build frontend + backend
+✅ Push to Docker Hub
+✅ Deploy MongoDB
+✅ Deploy backend container
+✅ Deploy frontend container
+✅ Application becomes live
 
-```js
-const express = require('express');
-const router = express.Router();
-const authenticateUser = require('../middleware/authentication');
-const { register, login, updateUser } = require('../controllers/auth');
-router.post('/register', register);
-router.post('/login', login);
-router.patch('/updateUser', authenticateUser, updateUser);
+✅ 11. Application URLs
 
-module.exports = router;
-```
-
-- create updateUser controller
-- setup export
-
-controllers/auth.js
-
-```js
-const updateUser = async (req, res) => {
-  console.log(req.user);
-  console.log(req.body);
-};
-```
-
-- complete updateUser
-
-controllers/auth.js
-
-```js
-const updateUser = async (req, res) => {
-  const { email, name, lastName, location } = req.body;
-  if (!email || !name || !lastName || !location) {
-    throw new BadRequestError('Please provide all values');
-  }
-  const user = await User.findOne({ _id: req.user.userId });
-
-  user.email = email;
-  user.name = name;
-  user.lastName = lastName;
-  user.location = location;
-
-  await user.save();
-
-  const token = user.createJWT();
-
-  res.status(StatusCodes.OK).json({
-    user: {
-      email: user.email,
-      lastName: user.lastName,
-      location: user.location,
-      name: user.name,
-      token,
-    },
-  });
-};
-```
-
-- Why New Token?
-
-#### GOTCHA
-
-- this.modifiedPaths();
-
-```js
-UserSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
-```
-
-#### Modify Job Model
-
-- add following properties
-
-models/Job.js
-
-```js
-jobType: {
-      type: String,
-      enum: ['full-time', 'part-time', 'remote', 'internship'],
-      default: 'full-time',
-    },
-    jobLocation: {
-      type: String,
-      default: 'my city',
-      required: true,
-    },
-```
-
-- default property just for fun, values will be provided by front-end
-
-#### Setup Mock Data
-
-- [Mockaroo](https://www.mockaroo.com/)
-- create mock-data.json (root)
-- provide test user id
-
-#### Populate DB
-
-- create populate.js
-
-populate.js
-
-```js
-require('dotenv').config();
-
-const mockData = require('./mock-data.json');
-
-const Job = require('./models/Job');
-const connectDB = require('./db/connect');
-
-const start = async () => {
-  try {
-    await connectDB(process.env.MONGO_URI);
-
-    await Job.create(mockData);
-    console.log('Success!!!');
-    process.exit(0);
-  } catch (error) {
-    console.log(error);
-    process.exit(1);
-  }
-};
-
-start();
-```
-
-#### Modify Get All Jobs
-
-- latest mongoose version change
-
-controllers/jobs.js
-
-```js
-const getAllJobs = async (req, res) => {
-  const { search, status, jobType, sort } = req.query;
-
-  // protected route
-  const queryObject = {
-    createdBy: req.user.userId,
-  };
-
-  if (search) {
-    queryObject.position = { $regex: search, $options: 'i' };
-  }
-  // add stuff based on condition
-
-  if (status && status !== 'all') {
-    queryObject.status = status;
-  }
-  if (jobType && jobType !== 'all') {
-    queryObject.jobType = jobType;
-  }
-
-  // NO AWAIT
-
-  let result = Job.find(queryObject);
-
-  // chain sort conditions
-
-  if (sort === 'latest') {
-    result = result.sort('-createdAt');
-  }
-  if (sort === 'oldest') {
-    result = result.sort('createdAt');
-  }
-  if (sort === 'a-z') {
-    result = result.sort('position');
-  }
-  if (sort === 'z-a') {
-    result = result.sort('-position');
-  }
-
-  //
-
-  // setup pagination
-  const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
-
-  result = result.skip(skip).limit(limit);
-
-  const jobs = await result;
-
-  const totalJobs = await Job.countDocuments(queryObject);
-  const numOfPages = Math.ceil(totalJobs / limit);
-
-  res.status(StatusCodes.OK).json({ jobs, totalJobs, numOfPages });
-};
-```
-
-#### Make Test User Read-Only
-
-middleware/authentication.js
-
-```js
-const payload = jwt.verify(token, process.env.JWT_SECRET);
-const testUser = payload.userId === '62eff8bcdb9af70b4155349d';
-req.user = { userId: payload.userId, testUser };
-```
-
-- create testingUser in middleware
-
-middleware/testUser
-
-```js
-const { BadRequestError } = require('../errors');
-
-const testUser = (req, res, next) => {
-  if (req.user.testUser) {
-    throw new BadRequestError('Test User. Read Only!');
-  }
-  next();
-};
-
-module.exports = testUser;
-```
-
-- add to auth routes (updateUser)
-
-```js
-const express = require('express');
-const router = express.Router();
-const authenticateUser = require('../middleware/authentication');
-const testUser = require('../middleware/testUser');
-const { register, login, updateUser } = require('../controllers/auth');
-
-router.post('/register', register);
-router.post('/login', login);
-router.patch('/updateUser', authenticateUser, testUser, updateUser);
-
-module.exports = router;
-```
-
-- add to job routes (createJob, updateJob, deleteJob)
-
-routes/jobs.js
-
-```js
-const express = require('express');
-
-const router = express.Router();
-const {
-  createJob,
-  deleteJob,
-  getAllJobs,
-  updateJob,
-  getJob,
-  showStats,
-} = require('../controllers/jobs');
-const testUser = require('../middleware/testUser');
-
-router.route('/').post(testUser, createJob).get(getAllJobs);
-router.route('/stats').get(showStats);
-router
-  .route('/:id')
-  .get(getJob)
-  .delete(testUser, deleteJob)
-  .patch(testUser, updateJob);
-
-module.exports = router;
-```
-
-#### API Limiter
-
-routes/auth.js
-
-```js
-const express = require('express');
-const router = express.Router();
-const authenticateUser = require('../middleware/authentication');
-const testUser = require('../middleware/testUser');
-const { register, login, updateUser } = require('../controllers/auth');
-
-const rateLimiter = require('express-rate-limit');
-const apiLimiter = rateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  message: {
-    msg: 'Too many requests from this IP, please try again after 15 minutes',
-  },
-});
-
-router.post('/register', apiLimiter, register);
-router.post('/login', apiLimiter, login);
-router.patch('/updateUser', authenticateUser, testUser, updateUser);
-
-module.exports = router;
-```
-
-app.js
-
-```js
-app.set('trust proxy', 1);
-
-app.use(express.static(path.resolve(__dirname, './client/build')));
-```
-
-#### Setup Stats Route
-
-controllers/jobs
-
-```js
-const showStats = (req, res) => {
-  res
-    .status(StatusCodes.OK)
-    .json({ defaultStats: {}, monthlyApplications: [] });
-};
-
-module.exports = {
-  createJob,
-  deleteJob,
-  getAllJobs,
-  updateJob,
-  getJob,
-  showStats,
-};
-```
-
-routes/jobs.js
-
-```js
-const express = require('express');
-
-const router = express.Router();
-const {
-  createJob,
-  deleteJob,
-  getAllJobs,
-  updateJob,
-  getJob,
-  showStats,
-} = require('../controllers/jobs');
-
-router.route('/').post(createJob).get(getAllJobs);
-router.route('/stats').get(showStats);
-router.route('/:id').get(getJob).delete(deleteJob).patch(updateJob);
-
-module.exports = router;
-```
-
-- npm install moment
-- import mongoose and moment
-
-controllers/jobs
-
-```js
-const mongoose = require('mongoose');
-const moment = require('moment');
-```
-
-- [Javascript Nuggets - Reduce Basics](https://youtu.be/3WkW9nrS2mw)
-- [Javascript Nuggets - Reduce (object example)](https://youtu.be/5BFkp8JjLEY)
-
-controllers/jobs
-
-```js
-const showStats = async (req, res) => {
-  let stats = await Job.aggregate([
-    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
-    { $group: { _id: '$status', count: { $sum: 1 } } },
-  ]);
-
-  stats = stats.reduce((acc, curr) => {
-    const { _id: title, count } = curr;
-    acc[title] = count;
-    return acc;
-  }, {});
-
-  const defaultStats = {
-    pending: stats.pending || 0,
-    interview: stats.interview || 0,
-    declined: stats.declined || 0,
-  };
-
-  let monthlyApplications = await Job.aggregate([
-    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
-    {
-      $group: {
-        _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-        count: { $sum: 1 },
-      },
-    },
-    { $sort: { '_id.year': -1, '_id.month': -1 } },
-    { $limit: 6 },
-  ]);
-  monthlyApplications = monthlyApplications
-    .map((item) => {
-      const {
-        _id: { year, month },
-        count,
-      } = item;
-      const date = moment()
-        .month(month - 1)
-        .year(year)
-        .format('MMM Y');
-      return { date, count };
-    })
-    .reverse();
-
-  res.status(StatusCodes.OK).json({ defaultStats, monthlyApplications });
-};
-```
-
-#### Deploy
-
-- remove existing git repo
-
-- add reverse() in showStats
-
-controllers/jobs.js
-
-```js
-monthlyApplications = monthlyApplications
-  .map((item) => {
-    const {
-      _id: { year, month },
-      count,
-    } = item;
-    const date = moment()
-      .month(month - 1)
-      .year(year)
-      .format('MMM Y');
-    return { date, count };
-  })
-  .reverse();
-```
-
-- remove Procfile
-- remove engines from package.json
-
-```json
-"engines": {
-    "node": "16.x"
-  }
-```
-
-- fix build folder (remove /build from client/.gitignore)
-- setup new github repo
-- deploy to render
-#   j o b s t e r - d o c k e r i z e d  
- 
+✅ Frontend → http://your-server-ip:81
+✅ Backend → http://your-server-ip:5000
+✅ MongoDB exposed at → 27017
