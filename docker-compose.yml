@@ -28,7 +28,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "81:80"
     depends_on:
       - backend
 
